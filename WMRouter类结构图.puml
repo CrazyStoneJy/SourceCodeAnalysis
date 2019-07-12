@@ -1,0 +1,79 @@
+@startuml
+
+abstract class UriHandler {
+    + handle(@NonNull final UriRequest request, @NonNull final UriCallback callback) : void
+    # {abstract} shouldHandle(@NonNull UriRequest request) : boolean
+    # {abstract} handleInternal(@NonNull UriRequest request, @NonNull UriCallback callback) : void
+    + addInterceptor(@NonNull UriInterceptor interceptor) : UriHandler
+    + addInterceptors(UriInterceptor... interceptors) : UriHandler
+}
+
+class ChainedHandler {
+    - mHandlers : PriorityList<UriHandler>
+    ----
+    - next(@NonNull final Iterator<UriHandler> iterator, @NonNull final UriRequest request,
+                          @NonNull final UriCallback callback) : void
+    + addChildHandler(@NonNull UriHandler handler, int priority) : ChainedHandler
+    + addChildHandler(@NonNull UriHandler handler) : ChainedHandler
+    # getHandlers() : List<UriHandler>
+    -- override method --
+    # shouldHandle(@NonNull UriRequest request) : boolean
+    # handleInternal(@NonNull final UriRequest request, @NonNull final UriCallback callback) : void
+}
+
+class RootUriHandler {
+    - mContext : Context
+    - mGlobalOnCompleteListener : OnCompleteListener
+    ----
+    + lazyInit() : void
+    + setGlobalOnCompleteListener(OnCompleteListener listener) : void
+    + getGlobalOnCompleteListener() : OnCompleteListener
+    + <T extends UriHandler> findChildHandlerByClass(Class<T> clazz) : T
+    + startUri(@NonNull UriRequest request) : void
+    - onSuccess(@NonNull UriRequest request) : void
+    - onError(@NonNull UriRequest request, int resultCode) : void
+    -- override method --
+    + addChildHandler(@NonNull UriHandler handler, int priority) : RootUriHandler
+    + addChildHandler(@NonNull UriHandler handler) : RootUriHandler
+}
+
+class DefaultRootUriHandler {
+    mPageAnnotationHandler : PageAnnotationHandler
+    mUriAnnotationHandler : UriAnnotationHandler
+    mRegexAnnotationHandler : RegexAnnotationHandler
+    ----
+    + lazyInit() : void
+    + getPageAnnotationHandler() : PageAnnotationHandler
+    + getUriAnnotationHandler() : UriAnnotationHandler
+    + getRegexAnnotationHandler() : RegexAnnotationHandler
+    # createPageAnnotationHandler() : PageAnnotationHandler
+    # createUriAnnotationHandler(@Nullable String defaultScheme,@Nullable String defaultHost) : UriAnnotationHandler
+    # createRegexAnnotationHandler() : RegexAnnotationHandler
+}
+
+interface UriResult {
+    + int CODE_SUCCESS = 200
+    + int CODE_REDIRECT = 301
+    + int CODE_BAD_REQUEST = 400
+    + int CODE_FORBIDDEN = 403
+    + int CODE_NOT_FOUND = 404
+    + int CODE_ERROR = 500
+}
+
+interface UriCallback {
+    + onNext() : void
+    + onComplete(int resultCode) : void
+}
+
+
+
+
+ChainedHandler --|> UriHandler
+RootUriHandler --|> ChainedHandler
+DefaultRootUriHandler --|> RootUriHandler
+
+UriCallback --|> UriResult
+
+
+
+@enduml
